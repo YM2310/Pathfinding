@@ -7,7 +7,7 @@
 
 #define ROWS 22
 #define COLS 22
-#define GAMESPEED 50
+#define GAMESPEED 10
 char board[ROWS][COLS];
 // cooredinates on map
 typedef struct place {
@@ -57,7 +57,9 @@ void moveMan(MAN* man, int direction);
 void removeCurs();
 PATH* findPath(PLACE current, char target, PLACE tree);
 PLACE findCloseTree(PLACE man);
+PLACE* find5CloseTree(PLACE man, PLACE* tree);
 PLACE checkSquare(PLACE man, char target, int layer);
+PLACE* checkSquare5Trees(PLACE man, char target, int layer, PLACE* tree);
 PATH* removeHead(PATH* head);
 void addAdjacent(PLACE* adjacent, PLACE current);
 PATH* getNode(PATH* path, PLACE place);
@@ -68,37 +70,29 @@ void addNodelast(PATH* head, PLACE place);
 void addNodeFfirst(PATH** head, PATH* new);
 void followPath(MAN* man, PATH* path);
 void goHome(MAN* man, PATH* path);
-void collectAll(MAN* man, PATH* path);
+bool collectAll(MAN* man, PATH* path);
+PATH* comparePaths(PLACE current, PLACE* tree);
+int pathLn(PATH* path);
 
 int main() {
 	for (int i = 0; i < 100; i++) {
+
 		time_t t;
 		srand((unsigned)time(&t));
 		init();
 		initBoard();
 		printBoard();
+		printf("%d", i);
 		MAN man;
 		PLACE house;
-		PATH* path;
+		PATH* path=1;
 		PLACE tree;
+
 		man = generateMap(&house);
 		do {
-			tree = findCloseTree(man.place);
-			if (tree.col != 0 || tree.row != 0) {
-				path = findPath(man.place, 'T', tree);
-				if (path == NULL) {
-					printf("NULL");
-					Sleep(1000);
-					break;
-				}
-				path = reversePath(path);
-
-				collectAll(&man, path);
-				//goHome(&man, path);
-			}
-		} while (tree.col != 0 || tree.row != 0);
+			;
+		} while (collectAll(&man, path));
 		printf("NO TREES");
-		Sleep(1000);
 		PLACE place;
 		place.row = ROWS + 1;
 		place.col = COLS + 1;
@@ -140,10 +134,8 @@ PATH* findPath(PLACE current, char target, PLACE tree) {
 	do {
 		count++;
 		currentstep = open;		
-		//placeBoard(currentstep->place, currentstep->stepnum + 48);
 		addNodelast(closed, currentstep->place);
 		open = open->next;
-		//open=removeHead(open);
 		if (currentstep->place.row == tree.row && currentstep->place.col == tree.col||board[currentstep->place.row][currentstep->place.col]=='T') {
 			pathfound = true;
 			break;
@@ -177,7 +169,6 @@ PATH* findPath(PLACE current, char target, PLACE tree) {
 	
 		}
 
-		//init the adjacent arr
 		for (int i = 0; i < 4; i++) {
 			adjacent[i].col = 0;
 			adjacent[i].row = 0;
@@ -301,11 +292,24 @@ PLACE findCloseTree(PLACE man) {
 		tree.row = 0;
 		return tree;
 	}
-
 	return tree;
 }
 
+PLACE* find5CloseTree(PLACE man, PLACE* tree)
+{
+ {
+		int layer = 1;
+		int i=0;
+
+			tree = checkSquare5Trees(man, 't', layer,tree);
+
+			return tree;
+
+	}
+}
+
 PLACE checkSquare(PLACE man, char target, int i) {
+
 	PLACE check;
 	check = man;
 	check.row -= i;
@@ -381,6 +385,79 @@ PLACE checkSquare(PLACE man, char target, int i) {
 	return man;
 }
 
+PLACE* checkSquare5Trees(PLACE man, char target, int layer, PLACE* tree)
+{
+	layer = 1;
+	PLACE check;
+	int i = 0;
+	check = man;
+	check.row -= layer;
+	while (layer < ROWS * 2 && i != 5) {
+
+		for (int j = 0; j < layer; j++) {
+			if (i != 5) {
+				if (check.col > 0 && check.row > 0) {
+					if (board[check.row][check.col] == 'T') {
+						tree[i] = check;
+						i++;
+						if (i == 5)
+							break;
+					}
+				}
+				check.col++;
+				check.row++;
+			}
+		}
+		if (i != 5) {
+			for (int j = 0; j < layer; j++) {
+				if (check.col > 0 && check.row > 0) {
+					if (board[check.row][check.col] == 'T') {
+						tree[i] = check;
+						i++;
+						if (i == 5)
+							break;
+					}
+				}
+				check.col--;
+				check.row++;
+			}
+		}
+		if (i != 5) {
+			for (int j = 0; j < layer; j++) {
+				if (check.col > 0 && check.row > 0) {
+					if (board[check.row][check.col] == 'T') {
+						tree[i] = check;
+						i++;
+						if (i == 5)
+							break;
+					}
+				}
+				check.col--;
+				check.row--;
+			}
+		}
+		if (i != 5) {
+			for (int j = 0; j < layer; j++) {
+				if (check.col > 0 && check.row > 0) {
+					if (board[check.row][check.col] == 'T') {
+						tree[i] = check;
+						i++;
+						if (i == 5)
+							break;
+					}
+				}
+				check.col++;
+				check.row--;
+			}
+		}
+		layer++;
+		check.row = man.row;
+		check.row -= layer;
+	}
+
+	return tree;
+}
+
 void leaveHouse(MAN* man) {
 	for(int i=0;i<3;i++)
 	moveMan(man, 6);
@@ -400,32 +477,100 @@ void followPath(MAN* man, PATH* path)
 	}
 }
 
-void collectAll(MAN* man, PATH* path)
+bool collectAll(MAN* man, PATH* path)
 {
+	path = 1;
+	int i = 0;
 	PLACE tree;
+	PLACE newtree;
+	PATH* newpath=NULL;
+
 	while (path != NULL) {
-		//for (int i = 0; i <2; i++) {
-			Sleep(GAMESPEED);
-			placeBoard(man->place, ' ');
-			removeCurs();
-			man->place = path->place;
-			placeBoard(man->place, 'O');
-			removeCurs();
-			path = path->next;
-		//}
 		tree = findCloseTree(man->place);
-		if (tree.col != 0 || tree.row != 0) {
+		if (tree.col != 0 || tree.row != 0) {//TRUE if there are trees left
 			path = findPath(man->place, 'T', tree);
-			if (path == NULL) {
+			if (path != NULL) {//TRUE if there are reachable trees left
+
+				path = reversePath(path);
+				path = path->next;
+			}
+			else {
+				return false;
 				break;
 			}
-			path = reversePath(path);
-			path = path->next;
 		}
 		else {
+			return false;
 			break;
 		}
+		do {
+				Sleep(GAMESPEED);
+				placeBoard(man->place, ' ');
+				removeCurs();
+				man->place = path->place;
+				placeBoard(man->place, 'O');
+				removeCurs();
+				path = path->next;	
+
+				newtree = findCloseTree(man->place);
+
+				if (newtree.col != tree.col || newtree.row != tree.row) {
+
+					if (newtree.col != 0 || newtree.row != 0) {
+						newpath = findPath(man->place, 'T', newtree);
+						if (newpath != NULL) {
+
+							newpath = reversePath(newpath);
+							newpath = newpath->next;
+						}
+					}
+
+					if (newpath != NULL) {
+						if (pathLn(path) >= pathLn(newpath)) {
+							path = newpath;
+							tree = newtree;
+						}
+					}
+				}
+				
+
+		} while (path->next != NULL);
 	}
+	return true;
+}
+PATH* comparePaths(PLACE current, PLACE* tree) {
+	PATH** paths = (PATH**)calloc(sizeof(PATH*), 5);
+	PATH* shortest=NULL;
+	int i = 0;
+	while (tree[i].col != 0 && tree[i].row != 0) {
+		paths[i] = findPath(current, 'T', tree[i]);
+		i++;
+	}
+	i = 0;
+	shortest = paths[i];
+	for (int i = 0; i < 4; i++) {
+		if (pathLn(paths[i + 1])!=0 && pathLn(paths[i + 1]) < pathLn(shortest)) {
+			
+			shortest = paths[i + 1];
+
+		}
+
+	}
+	return shortest;
+
+}
+
+int pathLn(PATH* path)
+{
+	int i=0;
+	if (path!= NULL) {
+		i++;
+		while (path->next != NULL) {
+			i++;
+			path = path->next;
+		}
+	}
+	return i;
 }
 
 void moveMan(MAN* man,int direction) {
